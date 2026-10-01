@@ -24,7 +24,7 @@ This project implements the provided QA automation case with:
 
 | Requirement              | Implementation                                             |
 | ------------------------ | ---------------------------------------------------------- |
-| Login                    | Hepsiburada login with saved-session fallback              |
+| Login                    | Hepsiburada UI login                                       |
 | Search                   | Search for `cep telefonu`                                  |
 | Price filter             | 15,000–20,000 TL                                           |
 | Product selection        | Random product from the bottom row                         |
@@ -262,21 +262,31 @@ The cart verification checks that the selected product and selected seller are a
 
 ## Authentication
 
-Hepsiburada may reject automated login attempts with an `N1E2` security response.
+The UI scenario first uses the normal Hepsiburada login flow.
 
-The framework does not attempt to bypass the site's security controls.
+Hepsiburada may reject automated login attempts with an `N1E2` security response. This is a site-side security control and is not bypassed by the framework.
 
-If normal UI login is rejected, an authenticated browser session can be created manually:
+### Authentication flow
+
+1. The test attempts the normal Hepsiburada login flow.
+2. If the login is accepted, the test continues normally.
+3. If Hepsiburada presents the `N1E2` security page, the automated login attempt is not retried or bypassed.
+4. An authenticated session can be created manually using:
 
 ```bash
 npm run auth
 ```
 
-After completing the normal login flow, the session is stored locally in:
+5. The script opens a normal browser session where the user completes the regular Hepsiburada login.
+6. After successful authentication, the browser storage state is saved to:
 
 ```text
 .auth/hepsiburada.json
 ```
+
+7. Subsequent UI test runs reuse this authenticated session.
+
+This keeps the authentication workaround isolated from the test scenario while avoiding automation-evasion or security-bypass techniques.
 
 The `.auth` directory is git-ignored and must not be committed.
 
@@ -402,6 +412,6 @@ The live UI scenario is not executed in CI because it requires a real Hepsiburad
 * The UI scenario depends on the live Hepsiburada website.
 * Website markup, security controls and product availability may change.
 * The bottom row is defined against the first results page.
-* Authentication may require a locally generated saved session.
+* Authentication may require a locally generated saved session if the live login flow triggers the site's security response.
 * Firefox and WebKit require the corresponding Playwright browser binaries.
 
