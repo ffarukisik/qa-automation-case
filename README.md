@@ -1,6 +1,6 @@
-# QA Automation Case
+# Hepsiburada QA Automation Case
 
-UI test and API test (mock invoice server) written with **Playwright + TypeScript + BDD (playwright-bdd)**.
+UI test (Hepsiburada) and API test (mock invoice server) written with **Playwright + TypeScript + BDD (playwright-bdd)**.
 
 ## What is covered
 
@@ -11,9 +11,9 @@ UI test and API test (mock invoice server) written with **Playwright + TypeScrip
 | 3. Browser is a parameter                                                                                                                       | `BROWSER=chromium\|firefox\|webkit\|all`                           |
 | 4. BDD                                                                                                                                          | Gherkin in `features/`, steps in `steps/`                          |
 | 5. Report                                                                                                                                       | Playwright HTML report (`playwright-report/`)                      |
-| 6. Screenshot on failure                                                                                                                | screenshot, video and trace are kept for failed scenarios          |
-| 7. Docker                                                                                                                               | `Dockerfile`, `Dockerfile.mock`, `docker-compose.yml`              |
-| 8. Parallel run                                                                                                                       | `fullyParallel`; API scenarios write one file per barcode          |
+| 6. Screenshot on failure (bonus)                                                                                                                | screenshot, video and trace are kept for failed scenarios          |
+| 7. Docker (bonus)                                                                                                                               | `Dockerfile`, `Dockerfile.mock`, `docker-compose.yml`              |
+| 8. Parallel run (bonus)                                                                                                                         | `fullyParallel`; API scenarios write one file per barcode          |
 
 ## Requirements
 
