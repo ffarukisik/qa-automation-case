@@ -1,0 +1,46 @@
+services:
+  mock-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    environment:
+      MOCK_PORT: 3001
+    ports:
+      - '3001:3001'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3001/viewInvoice?barcode=health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['npm', 'run', '${TEST_SCRIPT:-test}']
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    environment:
+      BASE_URL: ${BASE_URL:-https://www.hepsiburada.com}
+      API_BASE_URL: http://mock-api:3001
+      BROWSER: ${BROWSER:-chromium}
+      HEADLESS: 'true'
+      BROWSER_CHANNEL: '' # Chrome is not installed in the image: use bundled Chromium
+      START_MOCK: 'false'
+      TEST_USER: ${TEST_USER:-}
+      TEST_PASSWORD: ${TEST_PASSWORD:-}
+      API_USER: testuser
+      API_PASSWORD: testpass
+    volumes:
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+      - ./artifacts:/app/artifacts
+      - ./.auth:/app/.auth # saved Hepsiburada session (npm run auth on the host)

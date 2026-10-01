@@ -1,0 +1,37 @@
+{
+  "name": "qa-automation-case",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright + TypeScript + playwright-bdd QA automation case",
+  "scripts": {
+    "bddgen": "bddgen",
+    "test": "npm run bddgen && playwright test",
+    "test:ui": "npm run bddgen && playwright test --grep @ui",
+    "test:debug": "npm run bddgen && playwright test --ui",
+    "test:api": "npm run bddgen && playwright test --grep @api",
+    "report": "playwright show-report",
+    "mock": "node -r tsx/cjs mock-server/server.ts",
+    "auth": "node -r tsx/cjs scripts/save-session.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('fs').rmSync('.features-gen',{recursive:true,force:true}); require('fs').rmSync('test-results',{recursive:true,force:true}); require('fs').rmSync('playwright-report',{recursive:true,force:true}); require('fs').rmSync('artifacts',{recursive:true,force:true});\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:rules": "npm run bddgen && playwright test --grep @rules",
+    "test:chromium": "cross-env BROWSER=chromium npm run test:ui",
+    "test:firefox": "cross-env BROWSER=firefox npm run test:ui",
+    "test:webkit": "cross-env BROWSER=webkit npm run test:ui",
+    "test:all-browsers": "cross-env BROWSER=all npm run test:ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "22.0.0",
+    "cross-env": "^10.1.0",
+    "dotenv": "17.2.2",
+    "express": "5.1.0",
+    "playwright-bdd": "9.2.1",
+    "prettier": "^3.9.9",
+    "tsx": "4.20.0",
+    "typescript": "5.9.2"
+  }
+}

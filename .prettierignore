@@ -1,0 +1,7 @@
+node_modules
+.features-gen
+test-results
+playwright-report
+artifacts
+.auth
+package-lock.json

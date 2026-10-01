@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  api-and-rules:
+    name: API and rule tests (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm test -- --grep "@api|@rules"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report
+          path: |
+            playwright-report/
+            artifacts/
+          if-no-files-found: ignore
+
+  docker:
+    name: API and rule tests (Docker Compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the API and rule scenarios inside Docker Compose
+        run: docker compose run --rm --build tests npm test -- --grep "@api|@rules"
+      - name: Stop containers
+        if: always()
+        run: docker compose down --remove-orphans
