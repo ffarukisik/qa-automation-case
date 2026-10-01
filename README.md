@@ -1,135 +1,407 @@
-# Hepsiburada QA Automation Case
+# QA Automation Case
 
-UI test (Hepsiburada) and API test (mock invoice server) written with **Playwright + TypeScript + BDD (playwright-bdd)**.
+UI test and API test (mock invoice server) written with **Playwright + TypeScript + BDD (playwright-bdd)**.
+
+## Overview
+
+This project implements the provided QA automation case with:
+
+* Playwright + TypeScript
+* BDD / Gherkin
+* UI and API test automation
+* Business-rule validation
+* Cross-browser execution
+* Playwright HTML reporting
+* Failure screenshots, video and trace
+* Docker / Docker Compose
+* GitHub Actions CI
+
+**Target application:** Hepsiburada
+
+---
 
 ## What is covered
 
-| Case item                                                                                                                                       | Where                                                              |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 1. Login, search "cep telefonu", price filter 15.000-20.000 TL, random product from the bottom row, lowest-rated seller to the cart, cart check | `features/shopping.feature`                                        |
-| 2. Mock server with `token`, `viewInvoice`, `sendInvoice`; responses written to files                                                           | `mock-server/`, `features/invoice.feature`, `artifacts/responses/` |
-| 3. Browser is a parameter                                                                                                                       | `BROWSER=chromium\|firefox\|webkit\|all`                           |
-| 4. BDD                                                                                                                                          | Gherkin in `features/`, steps in `steps/`                          |
-| 5. Report                                                                                                                                       | Playwright HTML report (`playwright-report/`)                      |
-| 6. Screenshot on failure (bonus)                                                                                                                | screenshot, video and trace are kept for failed scenarios          |
-| 7. Docker (bonus)                                                                                                                               | `Dockerfile`, `Dockerfile.mock`, `docker-compose.yml`              |
-| 8. Parallel run (bonus)                                                                                                                         | `fullyParallel`; API scenarios write one file per barcode          |
+| Requirement              | Implementation                                             |
+| ------------------------ | ---------------------------------------------------------- |
+| Login                    | Hepsiburada login with saved-session fallback              |
+| Search                   | Search for `cep telefonu`                                  |
+| Price filter             | 15,000–20,000 TL                                           |
+| Product selection        | Random product from the bottom row                         |
+| Seller selection         | Lowest-rated seller                                        |
+| Cart                     | Add selected seller's product                              |
+| Cart verification        | Product and seller validation                              |
+| API authentication       | `POST /token`                                              |
+| Invoice lookup           | `GET /viewInvoice`                                         |
+| Invoice submission       | `POST /sendInvoice`                                        |
+| Response files           | Successful API responses written to `artifacts/responses/` |
+| Browser parameterization | Chromium / Firefox / WebKit / all                          |
+| BDD                      | Gherkin + `playwright-bdd`                                 |
+| Reporting                | Playwright HTML report                                     |
+| Failure artifacts        | Screenshot, video and trace                                |
+| Parallel execution       | Playwright `fullyParallel`                                 |
+| Docker                   | Docker Compose setup                                       |
+| CI                       | Type checking, formatting, API and business-rule tests     |
+
+---
 
 ## Requirements
 
-- Node.js 22 or newer (what CI and Docker use)
-- Google Chrome (the Chromium project runs on the installed Chrome) or Playwright's own browsers
-- A Hepsiburada test account for the UI scenario
-- Docker (optional)
+* Node.js 22+
+* Playwright browsers
+* A Hepsiburada test account for the UI scenario
+* Docker *(optional)*
 
-## Quick start
+---
+
+## Quick Start
+
+Install dependencies:
 
 ```bash
 npm ci
-npx playwright install        # only needed for Firefox/WebKit or the bundled Chromium
-cp .env.example .env          # PowerShell: copy .env.example .env
-# fill in TEST_USER and TEST_PASSWORD in .env
-npm test
-npm run report                # opens the HTML report
+npx playwright install
 ```
 
-`npm test` starts the mock server automatically. Never commit `.env` or `.auth/`.
+Create the environment file.
+
+**PowerShell:**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Configure the required values in `.env`:
+
+```text
+TEST_USER=
+TEST_PASSWORD=
+```
+
+Run the test suite:
+
+```bash
+npm test
+```
+
+Open the HTML report:
+
+```bash
+npm run report
+```
+
+---
 
 ## Commands
 
-| Command                                                                        | What it runs                                         |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| `npm test`                                                                     | everything (API, rules, UI)                          |
-| `npm run test:api`                                                             | API scenarios only                                   |
-| `npm run test:rules`                                                           | pure selection rules only (no browser, no site)      |
-| `npm run test:ui`                                                              | UI scenario only                                     |
-| `npm run test:debug`                                                           | Playwright UI mode (interactive debugging)           |
-| `npm run test:firefox` / `test:webkit` / `test:chromium` / `test:all-browsers` | UI scenario in that browser                          |
-| `npm run auth`                                                                 | log in by hand once and save the session (see below) |
-| `npm run typecheck`, `npm run format:check`                                    | TypeScript and formatting checks                     |
-
-PowerShell does not support `VAR=value npm test`: put values in `.env`, or use `$env:HEADLESS="true"; npm test`.
-
-## Configuration (`.env`)
-
-| Variable                                                | Meaning                                                                |
-| ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `TEST_USER`, `TEST_PASSWORD`                            | Hepsiburada account                                                    |
-| `BROWSER`                                               | `chromium` (default), `firefox`, `webkit`, `all`                       |
-| `HEADLESS`                                              | `false` (default) shows the browser; use `true` for CI/Docker          |
-| `WORKERS`                                               | parallel workers                                                       |
-| `BROWSER_CHANNEL` / `BROWSER_EXECUTABLE`                | installed Chrome (default) / bundled Chromium (empty) / a given binary |
-| `DEMO_PAUSE_MS`                                         | pause after highlighting a selection in headed runs (default 1500)     |
-| `TIMING=true`                                           | print how long each step of the UI scenario takes                      |
-| `CART_URL`, `SELLER_SECTION_WAIT_MS`                    | optional overrides                                                     |
-| `API_BASE_URL`, `MOCK_PORT`, `API_USER`, `API_PASSWORD` | mock server                                                            |
-
-## Login
-
-The case asks for a login, so the scenario **logs in through the UI first** (account menu, "Giriş Yap", e-mail and password). A login counts only when the home page then no longer offers "Giriş Yap".
-
-Hepsiburada may refuse automated logins with the generic error `(N1E2)` or a security page. This is a site-side control and the tests do not try to hide the automation from it. If the UI login fails, the scenario **falls back to a session saved by hand**:
+### Full test suite
 
 ```bash
-npm run auth        # opens a normal Chrome window: log in manually, then press Enter in the terminal
+npm test
+```
+
+### API tests
+
+```bash
+npm run test:api
+```
+
+### Business-rule tests
+
+```bash
+npm run test:rules
+```
+
+### UI tests
+
+```bash
 npm run test:ui
 ```
 
-The session is stored in `.auth/hepsiburada.json` (git-ignored, it contains login cookies). The HTML report states which way was used (annotation `login`). Without a saved session, a failed UI login fails the test with the reason.
+### Debug
 
-The rejected form attempt costs about 20 s per run. To skip it (for example while developing), leave `TEST_USER` and `TEST_PASSWORD` empty: the saved session is then used directly.
+```bash
+npm run test:debug
+```
+
+### Browser selection
+
+```bash
+npm run test:chromium
+npm run test:firefox
+npm run test:webkit
+npm run test:all-browsers
+```
+
+### Authentication
+
+```bash
+npm run auth
+```
+
+### Type checking
+
+```bash
+npm run typecheck
+```
+
+### Formatting check
+
+```bash
+npm run format:check
+```
+
+---
+
+## Configuration
+
+The main runtime settings are controlled through `.env`.
+
+| Variable                 | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `TEST_USER`              | Hepsiburada test account                 |
+| `TEST_PASSWORD`          | Hepsiburada password                     |
+| `BROWSER`                | `chromium`, `firefox`, `webkit` or `all` |
+| `HEADLESS`               | Headless/headed execution                |
+| `WORKERS`                | Playwright worker count                  |
+| `BROWSER_CHANNEL`        | Browser channel                          |
+| `BROWSER_EXECUTABLE`     | Custom browser executable                |
+| `DEMO_PAUSE_MS`          | Pause used during headed runs            |
+| `TIMING`                 | Timing output                            |
+| `CART_URL`               | Optional cart URL                        |
+| `SELLER_SECTION_WAIT_MS` | Optional seller-section wait             |
+| `API_BASE_URL`           | Mock API base URL                        |
+| `MOCK_PORT`              | Mock API port                            |
+| `API_USER`               | Mock API username                        |
+| `API_PASSWORD`           | Mock API password                        |
+
+---
+
+## Test Strategy
+
+### UI
+
+The main UI scenario follows the required business flow:
+
+```text
+Login
+  ↓
+Search "cep telefonu"
+  ↓
+Apply 15,000–20,000 TL filter
+  ↓
+Select a random product from the bottom row
+  ↓
+Open product detail
+  ↓
+Find the lowest-rated seller
+  ↓
+Add the seller's product to cart
+  ↓
+Verify product and seller in cart
+```
+
+### API
+
+The mock invoice service covers:
+
+```text
+POST /token
+GET  /viewInvoice?barcode={barcode}
+POST /sendInvoice
+```
+
+Successful `viewInvoice` and `sendInvoice` response bodies are written to:
+
+```text
+artifacts/responses/
+```
+
+### Business rules
+
+Core decisions are validated independently from the live website, including:
+
+* Product listing normalization
+* Organic/sponsored product filtering
+* Bottom-row calculation
+* Seller rating comparison
+* Cart-line validation
+
+---
 
 ## How the UI scenario decides
 
-**Bottom row.** The result list scrolls endlessly (the site appends further pages), so it has no real bottom. The bottom row is the **last visual row of the first results page**: the first 36 organic products, sponsored cards excluded. Later pages are never candidates.
+### Bottom row
 
-**Lowest-rated seller.** Every layout of the product page is covered:
+The bottom row is defined as the **last visual row of the first results page**.
 
-| Situation                                    | Sellers compared                                                  |
-| -------------------------------------------- | ----------------------------------------------------------------- |
-| No other sellers                             | the main seller                                                   |
-| Fewer than 4 other sellers (no "Tümünü gör") | main seller + the in-page "Diğer satıcılar" rows                  |
-| Many sellers ("Tümünü gör" opens a drawer)   | every seller in the drawer, scrolled until the list stops growing |
+The first 36 organic products are considered. Sponsored products are excluded.
 
-The lowest rating wins; on a tie the seller listed first is used; a seller without a rating only wins if nobody is rated. A seller listed with only "Ürüne git" is opened first and added from that seller's own offer page, which must show that seller.
+Products from later pages are not candidates.
 
-**Checks.** An independent step reads all ratings on the page and compares the minimum with the chosen seller's rating. After adding, the site's confirmation must appear, and the cart page must hold a line with the chosen product **and** the chosen seller on the same line.
+### Lowest-rated seller
 
-These rules are plain functions (`support/sellers.ts`, `support/listing.ts`, `support/cart.ts`) and are tested without the site in `features/rules.feature`.
+The seller selection logic handles the available product-page layouts:
+
+* If there are no other sellers, the main seller is used.
+* If the visible seller list is limited, the main seller and visible seller rows are considered.
+* If `Tümünü gör` is available, the complete seller drawer is considered.
+* If a seller only provides `Ürüne git`, the seller's own offer page is opened before adding the product.
+
+The lowest available rating is selected.
+
+If ratings are tied, the first listed seller is used.
+
+Unrated sellers are considered only when no rated seller is available.
+
+### Cart verification
+
+The cart verification checks that the selected product and selected seller are associated with the same cart line.
+
+---
+
+## Authentication
+
+Hepsiburada may reject automated login attempts with an `N1E2` security response.
+
+The framework does not attempt to bypass the site's security controls.
+
+If normal UI login is rejected, an authenticated browser session can be created manually:
+
+```bash
+npm run auth
+```
+
+After completing the normal login flow, the session is stored locally in:
+
+```text
+.auth/hepsiburada.json
+```
+
+The `.auth` directory is git-ignored and must not be committed.
+
+---
 
 ## Watching a run
 
-Chosen rows and sellers are highlighted and screenshotted into the HTML report; annotations name the bottom-row pick, the sellers found, the way the product was added and the cart line. With `TIMING=true` each step prints its duration.
+Selected products and sellers are highlighted during headed runs.
+
+Annotations and screenshots are attached to the Playwright HTML report.
+
+Timing information can be enabled through:
+
+```text
+TIMING=true
+```
+
+---
+
+## Reporting
+
+Playwright HTML reporting is enabled by default.
+
+Failed tests retain:
+
+* Screenshot
+* Video
+* Trace
+
+Report output:
+
+```text
+playwright-report/
+```
+
+Test artifacts:
+
+```text
+test-results/
+```
+
+---
 
 ## Docker
 
+The project includes:
+
+* `Dockerfile`
+* `Dockerfile.mock`
+* `docker-compose.yml`
+
+Run the full setup:
+
 ```bash
-docker compose up --build --abort-on-container-exit                         # API + rules + UI
-TEST_SCRIPT=test:api docker compose up --build --abort-on-container-exit    # API only
+docker compose up --build --abort-on-container-exit
 ```
 
-Reports and response files appear in `playwright-report/`, `test-results/`, `artifacts/`. The UI scenario needs credentials or a saved session (`.auth/` is mounted) and access to the live site. The container runs headless on the bundled Chromium, which the site rejects far more often, so the UI scenario is best-effort there; the API and rule scenarios are deterministic.
+Run API tests only:
 
-## Continuous integration
+```bash
+TEST_SCRIPT=test:api docker compose up --build --abort-on-container-exit
+```
 
-`.github/workflows/tests.yml` runs type check, formatting check, and the API and rule scenarios on every push, with Node and inside Docker Compose. The UI scenario is not part of CI: it needs a real account and the live site.
+The UI scenario depends on the live Hepsiburada environment and may be affected by site-side security controls in the container.
 
-## Project structure
+API and business-rule scenarios are deterministic.
+
+---
+
+## CI
+
+GitHub Actions runs deterministic quality checks including:
+
+* TypeScript type checking
+* Formatting validation
+* API tests
+* Business-rule tests
+* Docker-based execution
+
+The live UI scenario is not executed in CI because it requires a real Hepsiburada account and authenticated session and depends on the live website environment.
+
+---
+
+## Project Structure
 
 ```text
-features/       Gherkin: shopping (UI), invoice (API), rules (pure logic)
-steps/          step definitions; fixtures.ts holds per-scenario state
-pages/          Page Objects; components/SellerList.ts reads the seller list
-support/        pure rules (sellers, listing, cart), waits, report helpers, saved session
-api/            API client for the invoice steps
-mock-server/    token / viewInvoice / sendInvoice mock (Express)
-scripts/        `npm run auth` session capture
+.
+├── .github/
+│   └── workflows/
+├── api/
+├── features/
+├── mock-server/
+├── pages/
+├── scripts/
+├── steps/
+├── support/
+├── .env.example
+├── Dockerfile
+├── Dockerfile.mock
+├── docker-compose.yml
+├── package.json
+├── playwright.config.ts
+├── tsconfig.json
+└── README.md
 ```
 
-## Known limitations
+### Directory responsibilities
 
-- The UI scenario depends on the live site: its markup, security checks or stock can change.
-- The bottom row is defined on the first results page (see above).
-- After the price filter the site sometimes keeps showing the old list although the address changed; the test then reloads the page once. This is a workaround for a site quirk.
-- The `.auth/` session and the `.env` credentials stay on your machine: they are git-ignored and must not be shared.
-- Firefox and WebKit runs need `npx playwright install`.
+| Directory      | Responsibility                      |
+| -------------- | ----------------------------------- |
+| `features/`    | Gherkin scenarios                   |
+| `steps/`       | BDD step definitions                |
+| `pages/`       | Page Objects and UI interactions    |
+| `support/`     | Business rules and reusable helpers |
+| `api/`         | API client                          |
+| `mock-server/` | Mock invoice service                |
+| `scripts/`     | Authentication/session utilities    |
+
+---
+
+## Known Limitations
+
+* The UI scenario depends on the live Hepsiburada website.
+* Website markup, security controls and product availability may change.
+* The bottom row is defined against the first results page.
+* Authentication may require a locally generated saved session.
+* Firefox and WebKit require the corresponding Playwright browser binaries.
+
